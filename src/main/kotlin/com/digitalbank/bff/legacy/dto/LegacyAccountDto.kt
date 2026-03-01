@@ -20,5 +20,6 @@ data class LegacyAccountDto(
     val accountType: String,   // String instead of enum — another anti-pattern
     val holderName: String,
     val balance: String,       // Flattened instead of MonetaryAmount — lossy
-    val status: String         // String instead of enum — no type safety
+    val status: String,        // String instead of enum — no type safety
+    val openedAt: String?      // ⚠️ Nullable String — manually synced from AccountSummary.openedAt
 )

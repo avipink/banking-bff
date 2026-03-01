@@ -62,6 +62,7 @@ class LegacyDashboardController(
         accountType = accountType.name,   // ⚠️ Enum → String: loses type safety
         holderName = holderName,
         balance = "${balance.amount} ${balance.currency}",  // ⚠️ Flattens MonetaryAmount: lossy
-        status = status.name              // ⚠️ Enum → String: loses type safety
+        status = status.name,             // ⚠️ Enum → String: loses type safety
+        openedAt = openedAt               // ⚠️ Manually synced — only updated because contract changed
     )
 }
