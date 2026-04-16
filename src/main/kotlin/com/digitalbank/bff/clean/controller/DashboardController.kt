@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -87,9 +88,14 @@ class DashboardController(
     )
     @ApiResponses(value = [
         ApiResponse(responseCode = "201", description = "Transfer submitted successfully"),
+        ApiResponse(responseCode = "400", description = "Validation failed or missing Idempotency-Key header"),
         ApiResponse(responseCode = "404", description = "Account not found"),
-        ApiResponse(responseCode = "422", description = "Daily limit exceeded or validation failure")
+        ApiResponse(responseCode = "409", description = "Idempotency key reused with different payload"),
+        ApiResponse(responseCode = "422", description = "Insufficient funds, currency mismatch, or daily limit exceeded")
     ])
-    fun submitTransfer(@RequestBody request: PaymentRequest): PaymentResponse =
-        paymentClient.submitPayment(request)
+    fun submitTransfer(
+        @RequestBody request: PaymentRequest,
+        @RequestHeader("Idempotency-Key") idempotencyKey: String
+    ): PaymentResponse =
+        paymentClient.submitPayment(request, idempotencyKey)
 }

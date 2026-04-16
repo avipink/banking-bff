@@ -1,5 +1,6 @@
 package com.digitalbank.bff.clean.client
 
+import com.digitalbank.contracts.common.ApiError
 import com.digitalbank.contracts.payments.PaymentRequest
 import com.digitalbank.contracts.payments.PaymentResponse
 import org.slf4j.LoggerFactory
@@ -25,13 +26,33 @@ class PaymentServiceClient(
         .baseUrl(baseUrl)
         .build()
 
-    fun submitPayment(request: PaymentRequest): PaymentResponse {
+    /**
+     * Submits a payment to payments-core-svc.
+     *
+     * 4xx responses are intercepted via [onStatus], the upstream [ApiError] body is
+     * parsed, and an [UpstreamPaymentException] is thrown so
+     * [com.digitalbank.bff.exception.GlobalExceptionHandler] can re-emit the typed
+     * error code (e.g. INSUFFICIENT_FUNDS) unchanged — rather than collapsing to
+     * UPSTREAM_ERROR (which applied to all upstream errors previously).
+     *
+     * 5xx responses are left as [WebClientResponseException] so the existing
+     * UPSTREAM_ERROR handler in GlobalExceptionHandler collapses them, hiding
+     * internal service details from the frontend.
+     *
+     * @param idempotencyKey Forwarded from the BFF caller's Idempotency-Key header
+     */
+    fun submitPayment(request: PaymentRequest, idempotencyKey: String): PaymentResponse {
         return webClient.post()
             .uri("/api/v1/payments")
+            .header("Idempotency-Key", idempotencyKey)
             .bodyValue(request)
             .retrieve()
+            .onStatus({ it.is4xxClientError }) { response ->
+                response.bodyToMono(ApiError::class.java)
+                    .map { apiError -> UpstreamPaymentException(response.statusCode(), apiError) }
+            }
             .bodyToMono(PaymentResponse::class.java)
-            .block()!!
+            .block() ?: throw IllegalStateException("Empty response body from payments-core-svc")
     }
 
     fun getPaymentsByAccount(accountId: String): List<PaymentResponse> {
